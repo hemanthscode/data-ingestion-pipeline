@@ -1,0 +1,53 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment & package files
+venv/
+env/
+.venv/
+pipenv/
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Data directories (large files)
+data/raw/
+data/processed/
+data/reports/
+logs/
+notebooks/*.pkl
+*.parquet
+*.csv
+data/
+
+# Logs
+*.log
+pipeline.log
+logs/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter
+.ipynb_checkpoints/

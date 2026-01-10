@@ -1,0 +1,70 @@
+# Data Ingestion Pipeline Configuration
+
+# Input/Output Paths
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  reports: "data/reports"
+  logs: "logs"
+
+# File Reading Settings
+ingestion:
+  supported_formats: ["csv", "xlsx", "xls", "json", "parquet"]
+  encoding: "utf-8"
+  max_file_size_mb: 500
+  chunk_size: 10000  # For large files
+  
+# Data Cleaning Settings
+cleaning:
+  missing_values:
+    strategy: "auto"  # auto, drop, fill_mean, fill_median, fill_mode, fill_forward, fill_backward
+    threshold: 0.5  # Drop column if >50% missing
+  
+  duplicates:
+    keep: "first"  # first, last, false
+    subset: null  # Columns to consider, null means all
+  
+  outliers:
+    method: "iqr"  # iqr, zscore, isolation_forest
+    threshold: 1.5  # IQR multiplier
+    action: "cap"  # cap, remove, flag
+
+# Transformation Settings
+transformation:
+  categorical_encoding:
+    method: "auto"  # auto, onehot, label, target, frequency
+    handle_unknown: "ignore"
+    max_categories: 50  # Use frequency encoding if more categories
+  
+  numerical_scaling:
+    method: "standard"  # standard, minmax, robust, none
+    
+  feature_engineering:
+    create_datetime_features: true
+    create_interaction_features: false
+    polynomial_features: false
+
+# Data Validation
+validation:
+  check_data_types: true
+  check_ranges: true
+  check_uniqueness: true
+  generate_profile: true
+
+# Quality Thresholds
+quality:
+  min_completeness: 0.7  # Minimum 70% non-null values
+  max_duplicate_ratio: 0.1  # Maximum 10% duplicates
+  
+# Export Settings
+export:
+  formats: ["csv", "parquet"]  # Export formats
+  include_metadata: true
+  include_report: true
+  compression: "gzip"  # For parquet
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "json"
+  rotation: "10 MB"

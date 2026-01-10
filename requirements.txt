@@ -1,0 +1,35 @@
+# Core Data Processing
+pandas
+numpy
+openpyxl
+xlrd
+
+# Data Validation & Quality
+great_expectations
+pandera
+
+# Preprocessing & ML
+scikit-learn
+scipy
+
+# Configuration
+pyyaml
+python-dotenv
+
+# Logging & Monitoring
+loguru
+
+# Testing
+pytest
+pytest-cov
+
+# Documentation
+sphinx
+
+# Type Checking
+mypy
+
+# Code Quality
+black
+flake8
+isort

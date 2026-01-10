@@ -1,0 +1,56 @@
+cleaning:
+  duplicates:
+    keep: first
+    subset: null
+  missing_values:
+    strategy: fill_median
+    threshold: 0.5
+  outliers:
+    action: remove
+    method: iqr
+    threshold: 1.5
+export:
+  compression: gzip
+  formats:
+  - csv
+  - parquet
+  include_metadata: true
+  include_report: true
+ingestion:
+  chunk_size: 10000
+  encoding: utf-8
+  max_file_size_mb: 500
+  supported_formats:
+  - csv
+  - xlsx
+  - xls
+  - json
+  - parquet
+logging:
+  format: json
+  level: INFO
+  rotation: 10 MB
+paths:
+  logs: logs
+  processed_data: data/processed
+  raw_data: data/raw
+  reports: data/reports
+quality:
+  max_duplicate_ratio: 0.1
+  min_completeness: 0.7
+transformation:
+  categorical_encoding:
+    handle_unknown: ignore
+    max_categories: 50
+    method: onehot
+  feature_engineering:
+    create_datetime_features: true
+    create_interaction_features: false
+    polynomial_features: false
+  numerical_scaling:
+    method: minmax
+validation:
+  check_data_types: true
+  check_ranges: true
+  check_uniqueness: true
+  generate_profile: true
