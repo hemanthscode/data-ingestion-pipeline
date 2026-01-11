@@ -1,5 +1,5 @@
 """
-Data transformation module for encoding and scaling
+Data transformation module (FULLY FIXED - ETL SAFE)
 """
 import pandas as pd
 import numpy as np
@@ -11,66 +11,48 @@ from src.utils.config import ConfigManager
 
 logger = get_logger()
 
-
 class DataTransformer:
-    """Transform data for ML/analysis"""
+    """Transform data for analysis/ML - BUSINESS SAFE"""
     
     def __init__(self, config: Optional[ConfigManager] = None):
-        """
-        Initialize data transformer
-        
-        Args:
-            config: Configuration manager instance
-        """
         self.config = config or ConfigManager()
         self.encoders = {}
         self.scalers = {}
         self.transformation_report = {
             'encoded_columns': [],
             'scaled_columns': [],
+            'skipped_scaling': [],
             'engineered_features': []
         }
     
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Perform complete transformation pipeline
-        
-        Args:
-            df: DataFrame to transform
-        
-        Returns:
-            Transformed DataFrame
-        """
-        logger.info("Starting data transformation...")
+        """Perform complete transformation pipeline"""
+        logger.info("🔄 Starting safe data transformation...")
         df_transformed = df.copy()
         
-        # Feature engineering
+        # Feature engineering (safe)
         df_transformed = self._engineer_features(df_transformed)
         
-        # Encode categorical variables
+        # Encode categorical variables (safe - SKIP PHONE)
         df_transformed = self._encode_categorical(df_transformed)
         
-        # Scale numerical features
+        # Scale numerical features (BUSINESS SAFE)
         df_transformed = self._scale_numerical(df_transformed)
         
-        logger.info("Transformation complete")
+        logger.info("✅ Transformation complete - business readable")
         return df_transformed
     
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create new features from existing data"""
         create_datetime = self.config.get('transformation.feature_engineering.create_datetime_features', True)
-        
         if create_datetime:
             df = self._create_datetime_features(df)
-        
         return df
     
     def _create_datetime_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Extract features from datetime columns"""
         datetime_cols = df.select_dtypes(include=['datetime64']).columns
-        
         for col in datetime_cols:
-            # Extract year, month, day, etc.
             df[f'{col}_year'] = df[col].dt.year
             df[f'{col}_month'] = df[col].dt.month
             df[f'{col}_day'] = df[col].dt.day
@@ -82,26 +64,27 @@ class DataTransformer:
                 f'{col}_year', f'{col}_month', f'{col}_day', 
                 f'{col}_dayofweek', f'{col}_quarter', f'{col}_is_weekend'
             ])
-            
-            logger.info(f"Created datetime features from '{col}'")
-        
+            logger.info(f"📅 Created datetime features from '{col}'")
         return df
     
     def _encode_categorical(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Encode categorical variables"""
+        """Encode categorical variables - SKIP PHONE NUMBERS"""
         method = self.config.get('transformation.categorical_encoding.method', 'auto')
         max_categories = self.config.get('transformation.categorical_encoding.max_categories', 50)
         
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
         
+        # PROTECT PHONE COLUMNS
+        protected_cols = [col for col in categorical_cols if 'phone' in col.lower()]
+        for col in protected_cols:
+            logger.info(f"🛡️ Skipping encoding for phone column: {col}")
+            categorical_cols.remove(col)
+        
         for col in categorical_cols:
             n_unique = df[col].nunique()
             
-            # Auto-select encoding method
             if method == 'auto':
-                if n_unique == 2:
-                    encoding_method = 'label'
-                elif n_unique <= 10:
+                if n_unique <= 10:
                     encoding_method = 'onehot'
                 elif n_unique <= max_categories:
                     encoding_method = 'label'
@@ -110,7 +93,6 @@ class DataTransformer:
             else:
                 encoding_method = method
             
-            # Apply encoding
             if encoding_method == 'label':
                 df = self._label_encode(df, col)
             elif encoding_method == 'onehot':
@@ -123,83 +105,73 @@ class DataTransformer:
                 'method': encoding_method,
                 'n_categories': n_unique
             })
-        
         return df
     
     def _label_encode(self, df: pd.DataFrame, col: str) -> pd.DataFrame:
-        """Label encoding for categorical variables"""
         le = LabelEncoder()
         df[f'{col}_encoded'] = le.fit_transform(df[col].astype(str))
         self.encoders[col] = le
-        
-        # Drop original column
         df = df.drop(columns=[col])
-        logger.info(f"Label encoded '{col}' ({len(le.classes_)} categories)")
-        
+        logger.info(f"🔢 Label encoded '{col}'")
         return df
     
     def _onehot_encode(self, df: pd.DataFrame, col: str) -> pd.DataFrame:
-        """One-hot encoding for categorical variables"""
-        # Use pandas get_dummies for simplicity
         dummies = pd.get_dummies(df[col], prefix=col, drop_first=True)
         df = pd.concat([df, dummies], axis=1)
         df = df.drop(columns=[col])
-        
-        logger.info(f"One-hot encoded '{col}' ({len(dummies.columns)} new columns)")
-        
+        logger.info(f"🔢 One-hot encoded '{col}' ({len(dummies.columns)} new columns)")
         return df
     
     def _frequency_encode(self, df: pd.DataFrame, col: str) -> pd.DataFrame:
-        """Frequency encoding for high-cardinality categorical variables"""
         freq_map = df[col].value_counts(normalize=True).to_dict()
         df[f'{col}_freq'] = df[col].map(freq_map)
         df = df.drop(columns=[col])
-        
-        logger.info(f"Frequency encoded '{col}'")
-        
+        logger.info(f"📊 Frequency encoded '{col}'")
         return df
     
     def _scale_numerical(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Scale numerical features"""
-        method = self.config.get('transformation.numerical_scaling.method', 'standard')
+        """Scale ONLY ML columns - PROTECT BUSINESS DATA"""
+        method = self.config.get('transformation.numerical_scaling.method', 'none')
         
         if method == 'none':
+            logger.info("✅ ETL MODE: Skipping numerical scaling (Age/Salary preserved)")
             return df
         
+        # BUSINESS COLUMNS - NEVER SCALE
+        business_columns = self.config.get('transformation.numerical_scaling.business_columns', [])
+        business_columns.extend(['age', 'salary', 'phone', 'employee_id', 'id'])
+        
+        # Find ML columns only
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        ml_cols = [col for col in numeric_cols if col.lower() not in 
+                   [b.lower() for b in business_columns]]
         
-        # Exclude binary columns from scaling
-        binary_cols = [col for col in numeric_cols if df[col].nunique() == 2 
-                      and set(df[col].unique()).issubset({0, 1})]
-        cols_to_scale = [col for col in numeric_cols if col not in binary_cols]
-        
-        if not cols_to_scale:
+        if not ml_cols:
+            logger.info("✅ No ML columns found - keeping business data intact")
+            self.transformation_report['skipped_scaling'] = business_columns
             return df
         
-        # Select scaler
+        # Scale ML columns only
+        from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
         scalers = {
             'standard': StandardScaler(),
             'minmax': MinMaxScaler(),
             'robust': RobustScaler()
         }
-        
         scaler = scalers.get(method, StandardScaler())
         
-        # Fit and transform
-        df[cols_to_scale] = scaler.fit_transform(df[cols_to_scale])
+        df[ml_cols] = scaler.fit_transform(df[ml_cols])
         self.scalers['numerical'] = scaler
+        self.transformation_report['scaled_columns'] = ml_cols
         
-        self.transformation_report['scaled_columns'] = cols_to_scale
-        logger.info(f"Scaled {len(cols_to_scale)} numerical columns using {method} scaling")
-        
+        logger.info(f"⚖️ Scaled {len(ml_cols)} ML columns: {ml_cols}")
+        logger.info(f"🛡️ Protected business columns: {business_columns}")
         return df
     
     def inverse_transform_scaling(self, df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
-        """Inverse transform scaled columns"""
         if 'numerical' in self.scalers:
             df[cols] = self.scalers['numerical'].inverse_transform(df[cols])
         return df
     
     def get_report(self) -> Dict[str, Any]:
-        """Get transformation report"""
         return self.transformation_report

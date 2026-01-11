@@ -9,6 +9,7 @@ cleaning:
     action: remove
     method: iqr
     threshold: 1.5
+
 export:
   compression: gzip
   formats:
@@ -16,6 +17,7 @@ export:
   - parquet
   include_metadata: true
   include_report: true
+
 ingestion:
   chunk_size: 10000
   encoding: utf-8
@@ -26,18 +28,22 @@ ingestion:
   - xls
   - json
   - parquet
+
 logging:
   format: json
   level: INFO
   rotation: 10 MB
+
 paths:
   logs: logs
   processed_data: data/processed
   raw_data: data/raw
   reports: data/reports
+
 quality:
   max_duplicate_ratio: 0.1
   min_completeness: 0.7
+
 transformation:
   categorical_encoding:
     handle_unknown: ignore
@@ -48,7 +54,13 @@ transformation:
     create_interaction_features: false
     polynomial_features: false
   numerical_scaling:
-    method: minmax
+    method: none              # ← FIXED: No more scaling disaster!
+    skip_phone_numbers: true  # ← NEW: Protect phone columns
+    business_columns:         # ← NEW: Never scale these
+      - age
+      - salary
+      - phone
+
 validation:
   check_data_types: true
   check_ranges: true
